@@ -1,0 +1,179 @@
+Tab Tab1 = instance.ActiveTab;
+
+instance.LoadPictures = true; //запрещаю загрузку картинок
+instance.ClearCache(); //очищаю кэш
+instance.ClearCookie(); //очищаю куки
+instance.UseAdds = false; //запрещаю показ рекламы
+instance.AllowPopUp = false; //запрещаю всплывающие окна
+
+string strCaptchaService = project.Variables["cfg_captcha_service"].Value;
+
+IZennoList lstProxy = project.Lists["proxy"];
+string strProxyList = project.Variables["proxy"].Value;
+string strProyType = string.Empty;
+List<string> lstProxyTemp = new List<string>();
+string strProxy = string.Empty;
+if (strProxyList!=string.Empty) {
+	if (lstProxy.Count==0) {
+		project.SendInfoToLog("Добавьте прокси в список, на данным момент работаем без прокси",true);
+	} else {
+		lock (SyncObjects.ListSyncer) {
+			strProxy = lstProxy[0];
+			lstProxy.RemoveAt(0);
+			lstProxy.Add(strProxy);
+			instance.SetProxy(strProxy, false, true, true);
+			string strAPIResponse = ZennoPoster.HttpGet("https://whoer.net/ru", strProxy, "UTF-8", ZennoLab.InterfacesLibrary.Enums.Http.ResponceType.BodyOnly, 30000);
+			strAPIResponse = new Regex(@"(?<=<span\ class=""cont\ \ overdots"">)[\w\W]*?(?=</dd>)").Match(strAPIResponse).Value;
+			if (strAPIResponse.Contains("Ru") || strAPIResponse.Contains("ru")) {
+				Random r = new Random();
+				string[] acceptLanguageSet = {
+				    "ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4",
+				    "ru-RU,ru;q=0.9,en;q=0.8",
+				    "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"
+				};
+				// Устанавливаем Accept-Language
+				string acceptLanguage = acceptLanguageSet[r.Next(0, acceptLanguageSet.Length)].ToString();
+				project.Profile.AcceptLanguage = acceptLanguage;
+				// Устанавливаем настройки языка
+				project.Profile.UserAgentBrowserLanguage = acceptLanguage.Substring(0, acceptLanguage.IndexOf(','));
+				project.Profile.UserAgentLanguage = acceptLanguage.Substring(0, acceptLanguage.IndexOf(','));
+			} else {
+				Random R = new Random();
+				string[] acceptLanguageSet1 = {
+						"en-US,en;q=0.5"
+				};
+				string acceptLanguage1 = acceptLanguageSet1[R.Next(0, acceptLanguageSet1.Length)].ToString();
+				project.Profile.AcceptLanguage = acceptLanguage1;
+				// Устанавливаем настройки языка
+				project.Profile.UserAgentBrowserLanguage = acceptLanguage1.Substring(0, acceptLanguage1.IndexOf(','));
+				project.Profile.UserAgentLanguage = acceptLanguage1.Substring(0, acceptLanguage1.IndexOf(','));
+			}
+		}
+	}
+} else {
+	string strAPIResponse2 = ZennoPoster.HttpGet("https://whoer.net/ru", strProxy, "UTF-8", ZennoLab.InterfacesLibrary.Enums.Http.ResponceType.BodyOnly, 30000);
+	strAPIResponse2 = new Regex(@"(?<=\n<span\ class=""cont"">)[\w\W]*(?=<span\ class=""ico-holder\ region"">)").Match(strAPIResponse2).Value;
+	if (strAPIResponse2.Contains("Rus") || strAPIResponse2.Contains("rus")) {
+		Random ra = new Random();
+		string[] acceptLanguageSet2 = {
+		    "ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4",
+		    "ru-RU,ru;q=0.9,en;q=0.8",
+		    "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"
+		};
+		// Устанавливаем Accept-Language
+		string acceptLanguage2 = acceptLanguageSet2[ra.Next(0, acceptLanguageSet2.Length)].ToString();
+		project.Profile.AcceptLanguage = acceptLanguage2;
+		// Устанавливаем настройки языка
+		project.Profile.UserAgentBrowserLanguage = acceptLanguage2.Substring(0, acceptLanguage2.IndexOf(','));
+		project.Profile.UserAgentLanguage = acceptLanguage2.Substring(0, acceptLanguage2.IndexOf(','));
+	} else {
+		Random Ra = new Random();
+		string[] acceptLanguageSet3 = {
+				"en-US,en;q=0.5"
+		};
+		string acceptLanguage3 = acceptLanguageSet3[Ra.Next(0, acceptLanguageSet3.Length)].ToString();
+		project.Profile.AcceptLanguage = acceptLanguage3;
+		// Устанавливаем настройки языка
+		project.Profile.UserAgentBrowserLanguage = acceptLanguage3.Substring(0, acceptLanguage3.IndexOf(','));
+		project.Profile.UserAgentLanguage = acceptLanguage3.Substring(0, acceptLanguage3.IndexOf(','));
+	}
+	instance.SetProxy("", false, true, true);
+}
+string strVibor = project.Variables["vibor"].Value;
+project.SendInfoToLog(string.Format("Активирован модуль: {0}", strVibor));
+Global.SpecialForms.AlertNotificator.Instance.DisplayAlert("Активация", "Активирован модуль: "+ strVibor, null, 15000);
+
+Random regRandom = new Random(); //если регистрации будут в цикле, тот эта строка должна остаться ВНЕ цикла (иначе будут генериться одни и те же "случайные" числа)
+
+project.SendInfoToLog("Регистрируем ящик для профиля: " + project.Profile.Name + " " + project.Profile.Surname, true);
+
+Tab1.Navigate("https://passport.yandex.ru/registration?mode=register&retpath=https://yandex.ru/yaca/cat/Business/Realty/&origin=passport_auth2reg");
+Tab1.WaitDownloading();
+
+//заполняем имя-фамилию
+Tab1.FindElementByXPath("//input[@id='firstname']", 0).SetValue(project.Profile.Name, "Full");
+Tab1.FindElementByXPath("//input[@id='lastname']", 0).SetValue(project.Profile.Surname, "Full");
+
+//заполняем логин
+Tab1.FindElementByXPath("//input[@id='login']", 0).SetValue(project.Profile.Login, "Full");
+Thread.Sleep(10000);
+if (Tab1.FindElementByXPath("//div[contains(@class, 'login__ok control__valid')]",0).IsVoid) {
+	Tab1.FindElementByXPath("//span[contains(@class, 'login__suggestedLogin')]",0).Click();
+}
+
+//заполняем пароль
+Tab1.FindElementByXPath("//input[@id='password']", 0).Click();
+instance.WaitFieldEmulationDelay();
+// Эмулировать ввод текста
+instance.SendText(project.Profile.Password, 30);
+Thread.Sleep(3000);
+Tab1.FindElementByXPath("//input[@id='password_confirm']", 0).Click();
+instance.WaitFieldEmulationDelay();
+// Эмулировать ввод текста
+instance.SendText(project.Profile.Password, 30);
+Thread.Sleep(3000);
+
+Tab1.FindElementByXPath("//label[contains(@class, 'human-confirmation-switch human-confirmation-via-captcha')]", 0).Click(); //Кликаем по "нет телефона"
+Tab1.FindElementByXPath("//span[@id='hint_question_id']",0).Click();
+Thread.Sleep(3000);
+Tab1.FindElementByXPath("//a[@class='_nb-select-a']",6).Click();
+Thread.Sleep(1000);
+Tab1.FindElementByXPath("//input[@id='hint_answer']",0).SetValue("Девятка","Full");
+
+//Разгадываем капчу
+for (int i=0; i<5; i++) {
+	//5 попыток на разгадывание
+	HtmlElement elCaptcha = Tab1.FindElementByXPath("//img[contains(@class, 'captcha__captcha__text')]", 0);
+	string[] arrCaptchaResult = Regex.Split(ZennoPoster.CaptchaRecognition(strCaptchaService, elCaptcha.DrawToBitmap(true), ""), Regex.Escape("-|-")); //в первом элементе массива - код из SMS, во втором - badreport link
+	if (arrCaptchaResult[0]=="sorry") {
+		project.SendWarningToLog("WARN: Сервис вернул ответ sorry. Ждём 5 секунд", true);
+		Thread.Sleep(5000);
+		continue;
+	}else{
+		project.SendInfoToLog("Результат разгадывания капчи: " + arrCaptchaResult[0], true);
+	}
+	//заполняем пароль
+	Tab1.FindElementByXPath("//input[@id='password']", 0).Click();
+	instance.WaitFieldEmulationDelay();
+	// Эмулировать ввод текста
+	instance.SendText(project.Profile.Password, 30);
+	Thread.Sleep(3000);
+	Tab1.FindElementByXPath("//input[@id='password_confirm']", 0).Click();
+	instance.WaitFieldEmulationDelay();
+	// Эмулировать ввод текста
+	instance.SendText(project.Profile.Password, 30);
+	Thread.Sleep(3000);
+	Tab1.FindElementByXPath("//input[@id='answer']", 0).SetValue(arrCaptchaResult[0], "Full"); //вводим результат распознавания
+	Tab1.FindElementByXPath("//button[@id='nb-5']/span[contains(@class, 'ui-button-text')]/span[contains(@class, '_nb-button-content')]", 0).Click(); //нажимаем "Зарегистрироваться"
+	Tab1.WaitDownloading();
+	if (Tab1.FindElementByXPath("//img[contains(@class, 'captcha__captcha__text')]", 0).IsVoid) {
+		//капча разгадана верно
+		project.SendInfoToLog("Каптча успешно разгадана", true);
+		break;
+	}else{
+		//репортим сервису о неправильно разгаданной каптче
+		string strGetResultHeaderBody = ZennoPoster.HttpGet(arrCaptchaResult[1], "", "UTF-8", ZennoLab.InterfacesLibrary.Enums.Http.ResponceType.BodyOnly);
+	}
+}
+
+string strRegisteredMail = project.Profile.Login + "@yandex.ru";
+project.SendInfoToLog(String.Format("Успешно зарегистрирован ящик {0} для профиля {1} {2}", strRegisteredMail, project.Profile.Name, project.Profile.Surname), true);
+Global.SpecialForms.AlertNotificator.Instance.DisplayAlert("Инфо", "Успешно зарегистрирован аккаунт на mail.ru", null, 15000);
+
+if (strRegisteredMail==String.Empty) {
+	project.SendErrorToLog(String.Format("STOP: неизвестная ошибка при регистрации ящика для профиля  {0} {1}",  project.Profile.Name, project.Profile.Surname), true);
+	return "error";
+}
+
+string strDate = DateTime.Now.ToString();
+
+project.Variables["fio"].Value = project.Profile.Name+ " " + project.Profile.Surname;
+project.Variables["login"].Value = strRegisteredMail;
+project.Variables["pass"].Value = project.Profile.Password;
+project.Variables["proxy"].Value = strProxy;
+project.Variables["useragent"].Value = project.Profile.UserAgent;
+project.Variables["BirthDay"].Value = string.Empty;
+project.Variables["RegData"].Value = strDate;
+project.Variables["DOPMailLogin"].Value = string.Empty;
+project.Variables["DOPMailPass"].Value = string.Empty;
+project.Variables["CC"].Value = "Yandex.ru";
